@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Tweetify",
+  "version": "0.1.0",
+  "description": "Detection hoax tweet on X platform",
+  "permissions": ["storage", "tabs", "scripting", "activeTab"],
+  "host_permissions": ["https://*.x.com/*/status/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.x.com/*/status/*"],
+      "js": ["contentScript.js"]
+    }
+  ],
+  "action": {
+    "default_title": "Tweetify",
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
