@@ -1,0 +1,70 @@
+body {
+  background-color: #ffffff;
+  box-sizing: border-box;
+}
+
+/* header */
+#tweetify-logo {
+  width: 70px;
+}
+
+.header {
+  border-bottom: 1px solid #dadadd;
+  padding: 6px;
+}
+
+/* content */
+.outer-container {
+  margin: 0.25rem 0.25rem;
+  width: 17.5rem;
+  height: 320px;
+}
+
+/* table */
+table#list-of-tweet {
+  border: 1px solid #dbdbdb;
+  border-radius: 4px;
+}
+
+#list-of-tweet td {
+  padding: 8px;
+  border-bottom: 1px solid #e5e6ec;
+  text-align: justify;
+}
+
+.container-wrap {
+  height: 200px;
+  overflow: auto;
+}
+
+td > a {
+  text-decoration: none;
+  color: black;
+  overflow: hidden;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+td > a:hover {
+  text-decoration: underline;
+}
+
+.action {
+  width: 20%;
+}
+
+.delete-btn {
+  border-radius: 0.25rem;
+  height: 1.875rem;
+  width: 1.875rem;
+  text-align: center;
+  border: none;
+}
+
+.delete-btn:hover {
+  background-color: #ff529a;
+  color: white;
+  cursor: pointer;
+}
