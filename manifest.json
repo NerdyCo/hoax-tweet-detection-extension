@@ -8,15 +8,15 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://*.x.com/*/status/*"],
-      "js": ["contentScript.js"]
-    }
-  ],
   "action": {
     "default_title": "Tweetify",
     "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "./assets/tweetify-16.png",
+    "32": "./assets/tweetify-32.png",
+    "48": "./assets/tweetify-48.png",
+    "128": "./assets/tweetify-128.png"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
