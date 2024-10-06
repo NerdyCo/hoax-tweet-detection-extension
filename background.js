@@ -6,7 +6,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   ) {
     const parts = tab.url.split("/");
     const lastPart = parts[parts.length - 1];
-    let angka = 0;
 
     chrome.scripting
       .executeScript({
@@ -14,7 +13,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         files: ["contentScript.js"],
       })
       .then(() => {
-        console.log("Script executed successfully");
         chrome.tabs.sendMessage(tabId, {
           message: "TabUpdated",
           tweetId: lastPart,

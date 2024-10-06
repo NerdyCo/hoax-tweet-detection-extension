@@ -82,44 +82,51 @@
   };
 
   const fetchBookmarks = () => {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get([currentTweet], (obj) => {
-        resolve(obj[currentTweet] ? JSON.parse(obj[currentTweet]) : []);
+    return new Promise((resolve, reject) => {
+      chrome.storage.sync.get("tweetLink", (obj) => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve(obj.tweetLink ? JSON.parse(obj.tweetLink) : []);
+        }
       });
     });
   };
 
   // Add hoax tweet to bookmark
-  const addHoaxTweetToBookmark = async () => {
+  const addHoaxTweetToBookmark = async (tweetContent) => {
     const newBookmark = {
       link: window.location.href,
       isHoaxTweet: true,
+      currentTweetId: currentTweet,
+      tweetContent: tweetContent,
     };
 
-    // try {
-    //   const result = chrome.storage.sync.get([currentTweet]);
+    try {
+      currentTweetBookmarks = await fetchBookmarks();
+      console.log(currentTweetBookmarks);
 
-    //   currentTweetBookmarks = result[currentTweet]
-    //     ? JSON.parse(result[currentTweet])
-    //     : [];
-    //   currentTweetBookmarks.push(newBookmark);
-    //   currentTweetBookmarks.sort();
+      await new Promise((resolve, reject) => {
+        chrome.storage.sync.set(
+          {
+            tweetLink: JSON.stringify(
+              [...currentTweetBookmarks, newBookmark].sort((a, b) =>
+                a.link.localeCompare(b.link)
+              )
+            ),
+          },
+          () => {
+            chrome.runtime.lastError
+              ? reject(chrome.runtime.lastError)
+              : resolve();
+          }
+        );
+      });
 
-    //   chrome.storage.sync.set({
-    //     [currentTweet]: JSON.stringify(currentTweetBookmarks),
-    //   });
-    // } catch (err) {
-    //   console.error(`Error adding bookmark: ${err}`);
-    // }
-
-    currentTweetBookmarks = await fetchBookmarks();
-    console.log(currentTweetBookmarks);
-
-    chrome.storage.sync.set({
-      [currentTweet]: JSON.stringify(
-        [...currentTweetBookmarks, newBookmark].sort()
-      ),
-    });
+      console.log("Bookmark added successfully");
+    } catch (err) {
+      console.error(`Error adding bookmark: ${err.message}`);
+    }
   };
 
   // Check the content of the tweet
@@ -134,15 +141,15 @@
         .map((e) => e.textContent)
         .join(" ");
     } else {
-      console.log("No content found.");
+      console.error("No content found.");
     }
 
     // TODO: make request to turnbackhoax API with "text" as param
 
     // TODO: make GPTModel create message response in order to show up to users
 
-    blurringContent();
-    addHoaxTweetToBookmark();
+    // blurringContent();
+    addHoaxTweetToBookmark(text);
   };
 
   // Add "Periksa" button when tweet is loaded
@@ -183,7 +190,7 @@
         twitterOptions.insertBefore(checkBtn, twitterOptions.firstChild);
         checkBtn.addEventListener("click", checkingTweet);
       } else {
-        console.log("Element not found");
+        console.error("Element not found");
       }
     }
   };
