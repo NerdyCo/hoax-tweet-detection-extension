@@ -1,21 +1,26 @@
-(() => {
-  let currentTweet = "";
-  let currentTweetBookmarks = [];
+class TweetInspector {
+  constructor() {
+    this.currentTweet = "";
+    this.currentTweetBookmarks = [];
+    this.init();
+  }
 
-  chrome.runtime.onMessage.addListener((obj, sender, response) => {
-    const { message, tweetId } = obj;
+  init() {
+    chrome.runtime.onMessage.addListener((obj, sender, response) => {
+      const { message, tweetId } = obj;
 
-    if (message === "TabUpdated" && tweetId !== currentTweet) {
-      currentTweet = tweetId;
+      if (message === "TabUpdated" && tweetId !== this.currentTweet) {
+        this.currentTweet = tweetId;
 
-      setTimeout(() => {
-        tweetLoaded();
-      }, 300);
-    }
-  });
+        setTimeout(() => {
+          this.tweetLoaded();
+        }, 300);
+      }
+    });
+  }
 
-  // blur tweet content
-  const blurringContent = () => {
+  // Blur tweet content
+  blurringContent() {
     const content = document.getElementsByClassName(
       "css-175oi2r r-1igl3o0 r-qklmqi r-1adg3ll r-1ny4l3l"
     )[0];
@@ -76,10 +81,10 @@
       content.style.position = "relative";
       content.appendChild(censorOverlay);
     }
-  };
+  }
 
-  // fetch data from chrome storage
-  const fetchBookmarks = () => {
+  // Fetch bookmarks from Chrome storage
+  fetchBookmarks() {
     return new Promise((resolve, reject) => {
       chrome.storage.sync.get("tweetLink", (obj) => {
         if (chrome.runtime.lastError) {
@@ -89,13 +94,10 @@
         }
       });
     });
-  };
+  }
 
-  // make a request to turnbackhoax API
-  const fetchTurnbackhoaxAPI = async (text) => {
-    // TODO:
-    //  1. "response" must be processed
-
+  // Fetch data from Turnbackhoax API
+  async fetchTurnbackhoaxAPI(text) {
     const API_KEY = "99a3f08eeedadb6f32b9d7c3d96580c1";
     const SEARCH_FIELD_OPTION = "content";
     const url = `https://yudistira.turnbackhoax.id/Antihoax/${SEARCH_FIELD_OPTION}/${text}/${API_KEY}`;
@@ -111,32 +113,26 @@
     } catch (error) {
       console.error(`Error fetching data: ${error}`);
     }
-  };
+  }
 
-  // generate keywords from tweet's content with gptModel
-  const generateKeywords = () => {};
-
-  // analyze text whether hoax or not with gptModel
-  const analyzeTweet = () => {};
-
-  // add hoax tweet to bookmark
-  const addHoaxTweetToBookmark = async (tweetContent) => {
+  // Add hoax tweet to bookmarks
+  async addHoaxTweetToBookmark(tweetContent) {
     const newBookmark = {
       link: window.location.href,
       isHoaxTweet: true,
-      currentTweetId: currentTweet,
+      currentTweetId: this.currentTweet,
       tweetContent: tweetContent,
     };
 
     try {
-      currentTweetBookmarks = await fetchBookmarks();
-      console.log(currentTweetBookmarks);
+      this.currentTweetBookmarks = await this.fetchBookmarks();
+      console.log(this.currentTweetBookmarks);
 
       await new Promise((resolve, reject) => {
         chrome.storage.sync.set(
           {
             tweetLink: JSON.stringify(
-              [...currentTweetBookmarks, newBookmark].sort((a, b) =>
+              [...this.currentTweetBookmarks, newBookmark].sort((a, b) =>
                 a.link.localeCompare(b.link)
               )
             ),
@@ -153,10 +149,10 @@
     } catch (err) {
       console.error(`Error adding bookmark: ${err.message}`);
     }
-  };
+  }
 
-  // check the content of the tweet
-  const checkingTweet = () => {
+  // Check the content of the tweet
+  checkingTweet() {
     const contentTweet = document.querySelector('div[data-testid="tweetText"]');
     let text = "";
 
@@ -170,16 +166,11 @@
       console.error("No content found.");
     }
 
-    // TODO: make request to turnbackhoax API with "text" as param
+    this.addHoaxTweetToBookmark(text);
+  }
 
-    // TODO: make GPTModel create message response in order to show up to users
-
-    // blurringContent();
-    addHoaxTweetToBookmark(text);
-  };
-
-  // Add "Periksa" button when tweet is loaded
-  const tweetLoaded = () => {
+  // Add "Periksa" button when the tweet is loaded
+  tweetLoaded() {
     const checkBtnExists = document.getElementsByClassName("check-btn")[0];
 
     if (!checkBtnExists) {
@@ -214,10 +205,12 @@
 
       if (twitterOptions) {
         twitterOptions.insertBefore(checkBtn, twitterOptions.firstChild);
-        checkBtn.addEventListener("click", checkingTweet);
+        checkBtn.addEventListener("click", this.checkingTweet.bind(this));
       } else {
         console.error("Element not found");
       }
     }
-  };
-})();
+  }
+}
+
+new TweetInspector();
