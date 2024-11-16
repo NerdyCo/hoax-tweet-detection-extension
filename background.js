@@ -4,8 +4,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     tab.url &&
     /x\.com\/[^\/]+\/status\/\d+/.test(tab.url)
   ) {
-    const parts = tab.url.split("/");
-    const lastPart = parts[parts.length - 1];
+    const tweet_url = tab.url.split("/");
+    const tweet_id = tweet_url[tweet_url.length - 1];
 
     chrome.scripting
       .executeScript({
@@ -15,8 +15,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       .then(() => {
         chrome.tabs.sendMessage(tabId, {
           message: "TabUpdated",
-          tweetId: lastPart,
-          angka: 0,
+          tweetId: tweet_id,
         });
       })
       .catch((error) => console.error("Script execution failed:", error));

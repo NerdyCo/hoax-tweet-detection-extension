@@ -1,0 +1,11 @@
+{
+  "name": "hoax-tweet-detection-extension",
+  "version": "1.0.0",
+  "description": "this is an extension for detection hoax tweet on X platform",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

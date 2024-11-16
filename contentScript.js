@@ -6,18 +6,15 @@
     const { message, tweetId } = obj;
 
     if (message === "TabUpdated" && tweetId !== currentTweet) {
-      console.log(tweetId);
-      console.log(++obj.angka);
-
       currentTweet = tweetId;
 
       setTimeout(() => {
         tweetLoaded();
-      }, 400);
+      }, 300);
     }
   });
 
-  // Function to blur tweet content
+  // blur tweet content
   const blurringContent = () => {
     const content = document.getElementsByClassName(
       "css-175oi2r r-1igl3o0 r-qklmqi r-1adg3ll r-1ny4l3l"
@@ -81,6 +78,7 @@
     }
   };
 
+  // fetch data from chrome storage
   const fetchBookmarks = () => {
     return new Promise((resolve, reject) => {
       chrome.storage.sync.get("tweetLink", (obj) => {
@@ -93,7 +91,35 @@
     });
   };
 
-  // Add hoax tweet to bookmark
+  // make a request to turnbackhoax API
+  const fetchTurnbackhoaxAPI = async (text) => {
+    // TODO:
+    //  1. "response" must be processed
+
+    const API_KEY = "99a3f08eeedadb6f32b9d7c3d96580c1";
+    const SEARCH_FIELD_OPTION = "content";
+    const url = `https://yudistira.turnbackhoax.id/Antihoax/${SEARCH_FIELD_OPTION}/${text}/${API_KEY}`;
+
+    try {
+      let response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.text}`);
+      }
+
+      const data = await response.json();
+      console.log(data);
+    } catch (error) {
+      console.error(`Error fetching data: ${error}`);
+    }
+  };
+
+  // generate keywords from tweet's content with gptModel
+  const generateKeywords = () => {};
+
+  // analyze text whether hoax or not with gptModel
+  const analyzeTweet = () => {};
+
+  // add hoax tweet to bookmark
   const addHoaxTweetToBookmark = async (tweetContent) => {
     const newBookmark = {
       link: window.location.href,
@@ -129,7 +155,7 @@
     }
   };
 
-  // Check the content of the tweet
+  // check the content of the tweet
   const checkingTweet = () => {
     const contentTweet = document.querySelector('div[data-testid="tweetText"]');
     let text = "";
