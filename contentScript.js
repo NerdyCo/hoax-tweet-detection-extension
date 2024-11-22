@@ -97,23 +97,35 @@
       });
     }
 
+    // Create keywords using gpt api with gpt 3.5 model that receives text as input
+
     // Fetch data from Turnbackhoax API
     async fetchTurnbackhoaxAPI(text) {
+      const proxyUrl = "http://localhost:3000/proxy";
       const API_KEY = "99a3f08eeedadb6f32b9d7c3d96580c1";
       const SEARCH_FIELD_OPTION = "content";
-      const url = `https://yudistira.turnbackhoax.id/Antihoax/${SEARCH_FIELD_OPTION}/${text}/${API_KEY}`;
+      const apiUrl = `https://yudistira.turnbackhoax.id/Antihoax/${SEARCH_FIELD_OPTION}/${text}/${API_KEY}`;
 
       try {
-        let response = await fetch(url);
+        const response = await fetch(
+          `${proxyUrl}?url=${encodeURIComponent(apiUrl)}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.text}`);
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log(data);
+        return data;
       } catch (error) {
         console.error(`Error fetching data: ${error}`);
+        throw error;
       }
     }
 
@@ -160,19 +172,19 @@
       );
       let text = "";
 
-      if (contentTweet && contentTweet.children.length === 1) {
-        text = contentTweet.children[0].innerHTML;
-      } else if (contentTweet && contentTweet.children.length > 1) {
-        text = Array.from(contentTweet.children)
-          .map((e) => e.textContent)
-          .join(" ");
+      if (contentTweet) {
+        if (contentTweet.children.length === 1) {
+          text = contentTweet.children[0].innerHTML;
+        } else if (contentTweet.children.length > 1) {
+          text = Array.from(contentTweet.children)
+            .map((e) => e.textContent)
+            .join(" ");
+        }
+        this.addHoaxTweetToBookmark(text);
       } else {
         console.error("No content found.");
       }
-
-      this.addHoaxTweetToBookmark(text);
     }
-
     // Add "Periksa" button when the tweet is loaded
     async tweetLoaded() {
       const checkBtnExists = document.getElementsByClassName("check-btn")[0];
@@ -213,7 +225,6 @@
         } else {
           console.error("Element not found");
         }
-        await this.fetchTurnbackhoaxAPI("prabowo");
       }
     }
   }
