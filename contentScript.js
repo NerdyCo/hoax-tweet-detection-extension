@@ -97,8 +97,44 @@
       });
     }
 
-    // Create keywords using gpt api with gpt 3.5 model that receives text as input
+    // Create keywords generator using gpt api with gpt 3.5 model that receives text as input
+    async generateKeywords(text) {
+      const apiKey = "your-api-key";
+      const prompt = `Generate keywords for the following text: ${text}`;
 
+      try {
+        const response = await fetch(
+          "https://api.openai.com/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: "gpt-3.5-turbo-0125",
+              messages: [
+                {
+                  role: "user",
+                  content: prompt,
+                },
+              ],
+              max_tokens: 50,
+              n: 1,
+              temperature: 0.5,
+            }),
+          }
+        );
+
+        const data = await response.json();
+        const keywords = data.choices[0].message.content.trim();
+        console.log("Generated Keywords:", keywords);
+
+        return keywords;
+      } catch (error) {
+        console.error("Error generating keywords:", error);
+      }
+    }
     // Fetch data from Turnbackhoax API
     async fetchTurnbackhoaxAPI(text) {
       const proxyUrl = "http://localhost:3000/proxy";
@@ -225,6 +261,22 @@
         } else {
           console.error("Element not found");
         }
+      }
+    }
+
+    // make function that remove all chrome storage's data
+    async clearAllData() {
+      try {
+        await new Promise((resolve, reject) => {
+          chrome.storage.sync.clear(() => {
+            chrome.runtime.lastError
+              ? reject(chrome.runtime.lastError)
+              : resolve();
+          });
+        });
+        console.log("All data cleared successfully");
+      } catch (error) {
+        console.error("Error clearing data:", error);
       }
     }
   }
