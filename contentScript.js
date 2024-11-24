@@ -128,7 +128,6 @@
 
         const data = await response.json();
         const keywords = data.choices[0].message.content.trim();
-        console.log("Generated Keywords:", keywords);
 
         return keywords;
       } catch (error) {
@@ -158,7 +157,6 @@
         }
 
         const data = await response.json();
-        console.log(data);
 
         return data;
       } catch (error) {
@@ -262,7 +260,35 @@
             .map((e) => e.textContent)
             .join(" ");
         }
-        this.addHoaxTweetToBookmark(text);
+
+        // TODO: Add the logic to check the tweet content
+        // 1. call generateKeywords function
+        const resultOfAnalyze = this.generateKeywords(text)
+          .then((keywords) => {
+            // 2. call fetchTurnbackhoaxAPI function
+            return this.fetchTurnbackhoaxAPI(keywords)
+              .then((turnbackhoaxResponse) => {
+                // 3.call analyzeHoaxResponse function
+                return this.analyzeHoaxResponse(turnbackhoaxResponse, text)
+                  .then((finalAnalysis) => {
+                    console.log(`Result of analyze: ${finalAnalysis}`);
+                    // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
+                    // this.addHoaxTweetToBookmark(text);
+                    // this.blurringContent()
+
+                    // 4.2 if not, show popup message that the tweet is not hoax
+                  })
+                  .catch((error) => {
+                    console.error("Error analyzing hoax response:", error);
+                  });
+              })
+              .catch((error) => {
+                console.error("Error fetching hoax response:", error);
+              });
+          })
+          .catch((error) => {
+            console.error("Error generating keywords:", error);
+          });
       } else {
         console.error("No content found.");
       }
