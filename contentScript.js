@@ -158,9 +158,55 @@
         }
 
         const data = await response.json();
+        console.log(data);
+
         return data;
       } catch (error) {
         console.error(`Error fetching data: ${error}`);
+        throw error;
+      }
+    }
+
+    // analyze respons from fetchturnbackhoax and tweet text using gpt model
+    async analyzeHoaxResponse(turnbackhoaxResponse, tweetText) {
+      try {
+        const response = await fetch(
+          "https://api.openai.com/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "gpt-3.5-turbo",
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are a fact-checking assistant. Analyze the tweet content and the response from the hoax database to determine if the tweet contains misinformation.",
+                },
+                {
+                  role: "user",
+                  content: `Tweet content: ${tweetText}\nHoax database response: ${JSON.stringify(
+                    turnbackhoaxResponse
+                  )}\nPlease analyze if this tweet contains misinformation based on the database response.`,
+                },
+              ],
+              max_tokens: 150,
+              n: 1,
+              temperature: 0.3,
+            }),
+          }
+        );
+
+        const data = await response.json();
+        const analysis = data.choices[0].message.content.trim();
+        console.log("Hoax Analysis:", analysis);
+
+        return analysis;
+      } catch (error) {
+        console.error("Error analyzing hoax response:", error);
         throw error;
       }
     }

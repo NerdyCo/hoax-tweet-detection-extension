@@ -46,7 +46,7 @@ class PopupManager {
     const row = document.createElement("tr");
     const noDataCell = document.createElement("td");
 
-    noDataCell.colSpan = 2;
+    noDataCell.colSpan = 1;
     noDataCell.textContent = "Belum ada tweet yang di blokir";
     noDataCell.style.textAlign = "center";
 
@@ -61,10 +61,8 @@ class PopupManager {
       row.id = `tweet-url-${bookmark.currentTweetId}`;
 
       const linkCell = this.createLinkCell(bookmark);
-      const actionCell = this.createActionCell(bookmark);
 
       row.appendChild(linkCell);
-      row.appendChild(actionCell);
       table.appendChild(row);
     });
   }
@@ -84,53 +82,6 @@ class PopupManager {
     linkCell.appendChild(tweetLink);
 
     return linkCell;
-  }
-
-  // Create the action cell with the delete button
-  createActionCell(bookmark) {
-    const actionCell = document.createElement("td");
-    actionCell.classList.add("action");
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.classList.add("delete-btn");
-    deleteBtn.textContent = "X";
-
-    deleteBtn.addEventListener("click", () => {
-      this.removeBookmark(bookmark.currentTweetId);
-    });
-
-    actionCell.appendChild(deleteBtn);
-
-    return actionCell;
-  }
-
-  // Remove a bookmark from storage and the UI
-  async removeBookmark(tweetId) {
-    try {
-      const currentTweetBookmarks = await this.fetchBookmarks();
-
-      const updatedBookmarks = currentTweetBookmarks.filter(
-        (bookmark) => bookmark.currentTweetId !== tweetId
-      );
-
-      await new Promise((resolve, reject) => {
-        chrome.storage.sync.set(
-          { tweetLink: JSON.stringify(updatedBookmarks) },
-          () => {
-            chrome.runtime.lastError
-              ? reject(chrome.runtime.lastError)
-              : resolve();
-          }
-        );
-      });
-
-      const row = document.getElementById(`tweet-url-${tweetId}`);
-      if (row) row.remove();
-
-      console.log(`Bookmark with ID ${tweetId} removed successfully`);
-    } catch (error) {
-      console.error(`Error removing bookmark with Tweet ID ${tweetId}`, error);
-    }
   }
 }
 
