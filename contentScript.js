@@ -21,7 +21,7 @@
     }
 
     // Blur tweet content
-    blurringContent() {
+    blurringContent(TweetExplanation) {
       const content = document.getElementsByClassName(
         "css-175oi2r r-1igl3o0 r-qklmqi r-1adg3ll r-1ny4l3l"
       )[0];
@@ -36,6 +36,7 @@
         background: rgba(255, 255, 255, 0.1);
         color: #fff;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         font-size: 20px;
@@ -47,6 +48,15 @@
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       }
       
+      .tweet-explanation {
+        margin-bottom: 20px;
+        color: #fff;
+        font-size: 16px;
+        max-width: 80%;
+        line-height: 1.4;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+      }
+
       .censor-btn {
         background-color: white;
         color: black;
@@ -68,9 +78,12 @@
 
       if (!censorOverlay) {
         const censorButton = document.createElement("button");
+        const explanationText = document.createElement("p");
         censorOverlay = document.createElement("div");
 
         censorOverlay.className = "censored";
+        explanationText.className = "tweet-explanation";
+        explanationText.textContent = TweetExplanation;
         censorButton.className = "censor-btn";
         censorButton.textContent = "Lihat Tweet";
 
@@ -78,6 +91,7 @@
           content.removeChild(censorOverlay);
         });
 
+        censorOverlay.appendChild(explanationText);
         censorOverlay.appendChild(censorButton);
         content.style.position = "relative";
         content.appendChild(censorOverlay);
@@ -127,38 +141,46 @@
         );
 
         const data = await response.json();
-        const keywords = data.choices[0].message.content.trim();
+        const keywords = data.choices[0].message.content
+          .trim()
+          .split(",")
+          .map((keyword) => keyword.trim()); //store value in array
 
         return keywords;
       } catch (error) {
         console.error("Error generating keywords:", error);
       }
     }
+
     // Fetch data from Turnbackhoax API
-    async fetchTurnbackhoaxAPI(text) {
+    async fetchTurnbackhoaxAPI(keywords) {
       const proxyUrl = "http://localhost:3000/proxy";
       const API_KEY = "99a3f08eeedadb6f32b9d7c3d96580c1";
       const SEARCH_FIELD_OPTION = "content";
-      const apiUrl = `https://yudistira.turnbackhoax.id/Antihoax/${SEARCH_FIELD_OPTION}/${text}/${API_KEY}`;
+      let allResults = [];
 
       try {
-        const response = await fetch(
-          `${proxyUrl}?url=${encodeURIComponent(apiUrl)}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        for (const keyword of keywords) {
+          const keywordApiUrl = `https://yudistira.turnbackhoax.id/Antihoax/${SEARCH_FIELD_OPTION}/${keyword}/${API_KEY}`;
+          const response = await fetch(
+            `${proxyUrl}?url=${encodeURIComponent(keywordApiUrl)}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          allResults = allResults.concat(data);
         }
 
-        const data = await response.json();
-
-        return data;
+        return allResults;
       } catch (error) {
         console.error(`Error fetching data: ${error}`);
         throw error;
@@ -210,17 +232,16 @@
     }
 
     // Add hoax tweet to bookmarks
-    async addHoaxTweetToBookmark(tweetContent) {
+    async addHoaxTweetToBookmark(tweetContent, analysisResult) {
       const newBookmark = {
         link: window.location.href,
-        isHoaxTweet: true,
         currentTweetId: this.currentTweet,
         tweetContent: tweetContent,
+        analysisResult: analysisResult,
       };
 
       try {
         this.currentTweetBookmarks = await this.fetchBookmarks();
-        console.log(this.currentTweetBookmarks);
 
         await new Promise((resolve, reject) => {
           chrome.storage.sync.set(
@@ -246,53 +267,48 @@
     }
 
     // Check the content of the tweet
-    checkingTweet() {
+    async checkingTweet() {
       const contentTweet = document.querySelector(
         'div[data-testid="tweetText"]'
       );
       let text = "";
 
-      if (contentTweet) {
-        if (contentTweet.children.length === 1) {
-          text = contentTweet.children[0].innerHTML;
-        } else if (contentTweet.children.length > 1) {
-          text = Array.from(contentTweet.children)
-            .map((e) => e.textContent)
-            .join(" ");
-        }
-
-        // TODO: Add the logic to check the tweet content
-        // 1. call generateKeywords function
-        const resultOfAnalyze = this.generateKeywords(text)
-          .then((keywords) => {
-            // 2. call fetchTurnbackhoaxAPI function
-            return this.fetchTurnbackhoaxAPI(keywords)
-              .then((turnbackhoaxResponse) => {
-                // 3.call analyzeHoaxResponse function
-                return this.analyzeHoaxResponse(turnbackhoaxResponse, text)
-                  .then((finalAnalysis) => {
-                    console.log(`Result of analyze: ${finalAnalysis}`);
-                    // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
-                    // this.addHoaxTweetToBookmark(text);
-                    // this.blurringContent()
-
-                    // 4.2 if not, show popup message that the tweet is not hoax
-                  })
-                  .catch((error) => {
-                    console.error("Error analyzing hoax response:", error);
-                  });
-              })
-              .catch((error) => {
-                console.error("Error fetching hoax response:", error);
-              });
-          })
-          .catch((error) => {
-            console.error("Error generating keywords:", error);
-          });
-      } else {
+      if (!contentTweet) {
         console.error("No content found.");
+        return;
+      }
+
+      if (contentTweet.children.length === 1) {
+        text = contentTweet.children[0].innerHTML;
+      } else if (contentTweet.children.length > 1) {
+        text = Array.from(contentTweet.children)
+          .map((e) => e.textContent)
+          .join(" ");
+      }
+
+      // TODO: Add the logic to check the tweet content
+      try {
+        // 1. call generateKeywords function
+        const keywords = await this.generateKeywords(text);
+        // 2. call fetchTurnbackhoaxAPI function
+        const hoaxResponse = await this.fetchTurnbackhoaxAPI(keywords);
+        // 3.call analyzeHoaxResponse function
+        const analysisResult = await this.analyzeHoaxResponse(
+          hoaxResponse,
+          text
+        );
+        console.log(`Result of analyze: ${analysisResult}`);
+        // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
+        // this.addHoaxTweetToBookmark(text);
+        // this.blurringContent()
+
+        // 4.2 if not, show popup message that the tweet is not hoax
+      } catch (err) {
+        console.error("Error during tweet analysis:", err);
+        alert("An error occurred while analyzing the tweet.");
       }
     }
+
     // Add "Periksa" button when the tweet is loaded
     async tweetLoaded() {
       const checkBtnExists = document.getElementsByClassName("check-btn")[0];
