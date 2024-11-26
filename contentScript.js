@@ -57,16 +57,14 @@
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
       }
 
-      .censor-btn {
-        background-color: white;
-        color: black;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 20px;
-        cursor: pointer;
-        font-size: 14px;
-        font-family: sans-serif;
-        font-weight: bold;
+      .black-container {
+        background-color: rgba(0, 0, 0, 0.7);
+        width: 90%;
+        padding: 20px;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
     `;
 
@@ -77,22 +75,17 @@
       document.head.appendChild(styleSheet);
 
       if (!censorOverlay) {
-        const censorButton = document.createElement("button");
         const explanationText = document.createElement("p");
+        const blackContainer = document.createElement("div");
         censorOverlay = document.createElement("div");
 
         censorOverlay.className = "censored";
+        blackContainer.className = "black-container";
         explanationText.className = "tweet-explanation";
         explanationText.textContent = TweetExplanation;
-        censorButton.className = "censor-btn";
-        censorButton.textContent = "Lihat Tweet";
 
-        censorButton.addEventListener("click", () => {
-          content.removeChild(censorOverlay);
-        });
-
-        censorOverlay.appendChild(explanationText);
-        censorOverlay.appendChild(censorButton);
+        blackContainer.appendChild(explanationText);
+        censorOverlay.appendChild(blackContainer);
         content.style.position = "relative";
         content.appendChild(censorOverlay);
       }
@@ -111,7 +104,7 @@
       });
     }
 
-    // Create keywords generator using gpt api with gpt 3.5 model that receives text as input
+    // generate keywords using gpt api with gpt 3.5 model that receives text as input
     async generateKeywords(text) {
       const apiKey = "your-api-key";
       const prompt = `Generate keywords for the following text: ${text}`;
@@ -187,7 +180,7 @@
       }
     }
 
-    // analyze respons from fetchturnbackhoax and tweet text using gpt model
+    // analyze respons from fetchturnbackhoax and tweet text, using gpt model
     async analyzeHoaxResponse(turnbackhoaxResponse, tweetText) {
       try {
         const response = await fetch(
@@ -286,23 +279,23 @@
           .join(" ");
       }
 
-      // TODO: Add the logic to check the tweet content
+      // logic to check the tweet content
       try {
-        // 1. call generateKeywords function
         const keywords = await this.generateKeywords(text);
-        // 2. call fetchTurnbackhoaxAPI function
         const hoaxResponse = await this.fetchTurnbackhoaxAPI(keywords);
-        // 3.call analyzeHoaxResponse function
         const analysisResult = await this.analyzeHoaxResponse(
           hoaxResponse,
           text
         );
         console.log(`Result of analyze: ${analysisResult}`);
-        // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
-        // this.addHoaxTweetToBookmark(text);
-        // this.blurringContent()
 
+        // if(){
+        // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
+        //   this.addHoaxTweetToBookmark(text,analysisResult);
+        //   this.blurringContent(analysisResult)
+        // }else{
         // 4.2 if not, show popup message that the tweet is not hoax
+        // }
       } catch (err) {
         console.error("Error during tweet analysis:", err);
         alert("An error occurred while analyzing the tweet.");
@@ -312,6 +305,36 @@
     // Add "Periksa" button when the tweet is loaded
     async tweetLoaded() {
       const checkBtnExists = document.getElementsByClassName("check-btn")[0];
+
+      try {
+        const result = await new Promise((resolve, reject) => {
+          chrome.storage.sync.get("tweetLink", (result) => {
+            chrome.runtime.lastError
+              ? reject(chrome.runtime.lastError)
+              : resolve(result);
+          });
+        });
+
+        if (result.tweetLink) {
+          const currentUrl = window.location.href;
+          const bookmarks = JSON.parse(result.tweetLink);
+
+          const currentTweetId = currentUrl.split("/status/")[1]?.split("?")[0];
+
+          const found = bookmarks.find((bookmark) => {
+            const bookmarkTweetId = bookmark.link
+              .split("/status/")[1]
+              ?.split("?")[0];
+            return bookmarkTweetId === currentTweetId;
+          });
+
+          if (found) {
+            this.blurringContent(found.analysisResult);
+          }
+        }
+      } catch (err) {
+        console.error(`Error checking tweet link: ${err.message}`);
+      }
 
       if (!checkBtnExists) {
         console.log("Check button created");
