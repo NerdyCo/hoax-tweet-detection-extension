@@ -8,7 +8,7 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-app.get("/proxy", async (req, res) => {
+app.get("/", async (req, res) => {
   try {
     const { url } = req.query;
     const response = await fetch(url);
