@@ -1,9 +1,4 @@
 (function () {
-  if (window.tweetInspectorInitialized) {
-    return;
-  }
-  window.tweetInspectorInitialized = true;
-
   class TweetInspector {
     constructor() {
       this.currentTweet = "";
@@ -111,7 +106,7 @@
 
     // generate keywords using gpt api with gpt 3.5 model that receives text as input
     async generateKeywords(text) {
-      const apiKey = "YOUR_OPENAI_API_KEY";
+      const apiKey = "your-api-key";
       const prompt = `Generate keywords for the following text: ${text}`;
 
       try {
@@ -152,10 +147,10 @@
 
     // Fetch data from Turnbackhoax API
     async fetchTurnbackhoaxAPI(keywords) {
-      const proxyUrl = "http://localhost:3000/";
+      const proxyUrl = "http://localhost:3000/proxy";
       const API_KEY = "99a3f08eeedadb6f32b9d7c3d96580c1";
       const SEARCH_FIELD_OPTION = "content";
-      let allData = [];
+      let allResults = [];
 
       try {
         for (const keyword of keywords) {
@@ -175,10 +170,10 @@
           }
 
           const data = await response.json();
-          allData.push(data);
+          allResults = allResults.concat(data);
         }
 
-        return allData;
+        return allResults;
       } catch (error) {
         console.error(`Error fetching data: ${error}`);
         throw error;
@@ -284,30 +279,27 @@
           .join(" ");
       }
 
-      console.info(`Tweet content: ${text}`);
-      this.addHoaxTweetToBookmark(text, "ini adalah hoax");
-      this.blurringContent("ini mengandung hoax");
-
       // logic to check the tweet content
-      // try {
-      //   const keywords = await this.generateKeywords(text);
-      //   const hoaxResponse = await this.fetchTurnbackhoaxAPI(keywords);
-      //   const analysisResult = await this.analyzeHoaxResponse(
-      //     hoaxResponse,
-      //     text
-      //   );
-      //   console.log(`Result of analyze: ${analysisResult}`);
+      try {
+        const keywords = await this.generateKeywords(text);
+        const hoaxResponse = await this.fetchTurnbackhoaxAPI(keywords);
+        const analysisResult = await this.analyzeHoaxResponse(
+          hoaxResponse,
+          text
+        );
+        console.log(`Result of analyze: ${analysisResult}`);
 
-      // if(){
-      // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
-      //   this.addHoaxTweetToBookmark(text,analysisResult);
-      // }else{
-      // 4.2 if not, show popup message that the tweet is not hoax
-      // }
-      // } catch (err) {
-      //   console.error("Error during tweet analysis:", err);
-      //   alert("An error occurred while analyzing the tweet.");
-      // }
+        // if(){
+        // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
+        //   this.addHoaxTweetToBookmark(text,analysisResult);
+        //   this.blurringContent(analysisResult)
+        // }else{
+        // 4.2 if not, show popup message that the tweet is not hoax
+        // }
+      } catch (err) {
+        console.error("Error during tweet analysis:", err);
+        alert("An error occurred while analyzing the tweet.");
+      }
     }
 
     // Add "Periksa" button when the tweet is loaded
