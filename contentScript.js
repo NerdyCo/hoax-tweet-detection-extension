@@ -27,73 +27,86 @@
 
     // Blur tweet content
     blurringContent(TweetExplanation) {
-      const content = document.getElementsByClassName(
-        "css-175oi2r r-1igl3o0 r-qklmqi r-1adg3ll r-1ny4l3l"
-      )[0];
+      const maxRetries = 5;
+      const retryInterval = 500;
+      let retryCount = 0;
 
-      const styles = `
-      .censored {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(255, 255, 255, 0.1);
-        color: #fff;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        text-align: center;
-        z-index: 10;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 0, 0, 0.18);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
-      
-      .tweet-explanation {
-        margin-bottom: 20px;
-        color: #fff;
-        font-size: 16px;
-        max-width: 80%;
-        line-height: 1.4;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-      }
+      const tryBlurring = () => {
+        const content = document.getElementsByClassName(
+          "css-175oi2r r-1igl3o0 r-qklmqi r-1adg3ll r-1ny4l3l"
+        )[0];
 
-      .black-container {
-        background-color: rgba(0, 0, 0, 0.7);
-        width: 90%;
-        padding: 20px;
-        border-radius: 10px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-    `;
+        if (content) {
+          const styles = `
+            .censored {
+              position: absolute;
+              top: 0;
+              left: 0;
+              width: 100%;
+              height: 100%;
+              background: rgba(255, 255, 255, 0.1);
+              color: #fff;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              font-size: 20px;
+              text-align: center;
+              z-index: 10;
+              backdrop-filter: blur(10px);
+              -webkit-backdrop-filter: blur(10px);
+              border: 1px solid rgba(0, 0, 0, 0.18);
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            
+            .tweet-explanation {
+              margin-bottom: 20px;
+              color: #fff;
+              font-size: 16px;
+              max-width: 80%;
+              line-height: 1.4;
+              text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+            }
 
-      let censorOverlay = content.querySelector(".censored");
-      let styleSheet = document.createElement("style");
+            .black-container {
+              background-color: rgba(0, 0, 0, 0.7);
+              width: 90%;
+              padding: 20px;
+              border-radius: 10px;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+            }
+          `;
 
-      styleSheet.textContent = styles;
-      document.head.appendChild(styleSheet);
+          let censorOverlay = content.querySelector(".censored");
+          let styleSheet = document.createElement("style");
 
-      if (!censorOverlay) {
-        const explanationText = document.createElement("p");
-        const blackContainer = document.createElement("div");
-        censorOverlay = document.createElement("div");
+          styleSheet.textContent = styles;
+          document.head.appendChild(styleSheet);
 
-        censorOverlay.className = "censored";
-        blackContainer.className = "black-container";
-        explanationText.className = "tweet-explanation";
-        explanationText.textContent = TweetExplanation;
+          if (!censorOverlay) {
+            const explanationText = document.createElement("p");
+            const blackContainer = document.createElement("div");
+            censorOverlay = document.createElement("div");
 
-        blackContainer.appendChild(explanationText);
-        censorOverlay.appendChild(blackContainer);
-        content.style.position = "relative";
-        content.appendChild(censorOverlay);
-      }
+            censorOverlay.className = "censored";
+            blackContainer.className = "black-container";
+            explanationText.className = "tweet-explanation";
+            explanationText.textContent = TweetExplanation;
+
+            blackContainer.appendChild(explanationText);
+            censorOverlay.appendChild(blackContainer);
+            content.style.position = "relative";
+            content.appendChild(censorOverlay);
+          }
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(tryBlurring, retryInterval);
+        }
+      };
+
+      tryBlurring();
     }
 
     // Fetch bookmarks from Chrome storage
