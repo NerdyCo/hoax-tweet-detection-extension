@@ -124,8 +124,8 @@
 
     // generate keywords using gpt api with gpt 3.5 model that receives text as input
     async generateKeywords(text) {
-      const apiKey = "YOUR_OPENAI_API_KEY";
-      const prompt = `Generate keywords for the following text: ${text}`;
+      const apiKey = "YOUR_API_KEY";
+      const prompt = `buat maksimal dua keyword dari kalimat berikut: "${text}" dengan menggunakan bahasa indonesia, langsung saja tidak usah dijelaskan.`;
 
       try {
         const response = await fetch(
@@ -138,24 +138,16 @@
             },
             body: JSON.stringify({
               model: "gpt-3.5-turbo-0125",
-              messages: [
-                {
-                  role: "user",
-                  content: prompt,
-                },
-              ],
+              messages: [{ role: "user", content: prompt }],
               max_tokens: 50,
-              n: 1,
-              temperature: 0.5,
             }),
           }
         );
 
         const data = await response.json();
-        const keywords = data.choices[0].message.content
-          .trim()
-          .split(",")
-          .map((keyword) => keyword.trim()); //store value in array
+        console.log("response", data);
+        const keywords = data.choices[0].message.content.trim();
+        console.log("keywords", keywords);
 
         return keywords;
       } catch (error) {
