@@ -6,6 +6,10 @@
 
   class TweetInspector {
     constructor() {
+      // assigning api keys
+      this.OPENAI_API_KEY = "YOUR_OPENAI_API_KEY";
+      this.TURNBACKHOAX_API_KEY = "YOUR_TURNBACKHOAX_API_KEY";
+
       this.currentTweet = "";
       this.currentTweetBookmarks = [];
       this.init();
@@ -124,7 +128,7 @@
 
     // generate keywords using gpt api with gpt 3.5 model that receives text as input
     async generateKeywords(text) {
-      const apiKey = "YOUR_API_KEY";
+      const apiKey = this.OPENAI_API_KEY;
       const prompt = `buat maksimal dua keyword dari kalimat berikut: "${text}" dengan menggunakan bahasa indonesia, langsung saja tidak usah dijelaskan.`;
 
       try {
@@ -146,7 +150,11 @@
 
         const data = await response.json();
         console.log("response", data);
-        const keywords = data.choices[0].message.content.trim();
+        const keywords = data.choices[0].message.content
+          .trim()
+          .split(",")
+          .map((keyword) => keyword.trim());
+
         console.log("keywords", keywords);
 
         return keywords;
@@ -158,8 +166,8 @@
     // Fetch data from Turnbackhoax API
     async fetchTurnbackhoaxAPI(keywords) {
       const proxyUrl = "http://localhost:3000/";
-      const API_KEY = "99a3f08eeedadb6f32b9d7c3d96580c1";
-      const SEARCH_FIELD_OPTION = "content";
+      const API_KEY = this.TURNBACKHOAX_API_KEY;
+      const SEARCH_FIELD_OPTION = "tags";
       let allData = [];
 
       try {
@@ -183,7 +191,22 @@
           allData.push(data);
         }
 
-        return allData;
+        const sanitizedData = JSON.parse(JSON.stringify(allData));
+
+        allData = [];
+        for (const responseArray of sanitizedData) {
+          for (const item of responseArray) {
+            allData.push({
+              fact: item.fact,
+              title: item.title,
+            });
+          }
+        }
+
+        const jsonResult = JSON.parse(
+          JSON.stringify(allData, null, 2).replace(/\\[nr]/g, " ")
+        );
+        return jsonResult;
       } catch (error) {
         console.error(`Error fetching data: ${error}`);
         throw error;
@@ -193,6 +216,17 @@
     // analyze respons from fetchturnbackhoax and tweet text, using gpt model
     async analyzeHoaxResponse(turnbackhoaxResponse, tweetText) {
       try {
+        const promtSystem =
+          "You are a fact-checking assistant. Analyze content and assign probabilities based on evidence found in turnbackhoax database and writing style. If matches found in database or suspicious style detected, increase hoax probability.";
+        const promtUser = `Analyze this tweet: "${tweetText}" 
+      Compare with turnbackhoax data: ${turnbackhoaxResponse}
+      Rules:
+      - If matching content found in turnbackhoax: hoax > 0.7
+      - If no matches but suspicious style: hoax 0.4-0.7 
+      - If no matches and normal style: hoax < 0.4
+      Return JSON with:
+      {"hoax": (probability 0-1),"non_hoax": (inverse of hoax),"explanation": "(reasoning in Indonesian)"}`;
+
         const response = await fetch(
           "https://api.openai.com/v1/chat/completions",
           {
@@ -202,18 +236,16 @@
               Authorization: `Bearer ${this.OPENAI_API_KEY}`,
             },
             body: JSON.stringify({
-              model: "gpt-3.5-turbo",
+              model:
+                "ft:gpt-3.5-turbo-0125:personal:detecting-hoax-based-writing-style:Ab4A7oWA",
               messages: [
                 {
                   role: "system",
-                  content:
-                    "You are a fact-checking assistant. Analyze the tweet content and the response from the hoax database to determine if the tweet contains misinformation.",
+                  content: promtSystem,
                 },
                 {
                   role: "user",
-                  content: `Tweet content: ${tweetText}\nHoax database response: ${JSON.stringify(
-                    turnbackhoaxResponse
-                  )}\nPlease analyze if this tweet contains misinformation based on the database response.`,
+                  content: promtUser,
                 },
               ],
               max_tokens: 150,
@@ -224,8 +256,18 @@
         );
 
         const data = await response.json();
-        const analysis = data.choices[0].message.content.trim();
-        console.log("Hoax Analysis:", analysis);
+        console.log("Raw GPT response:", data);
+
+        const analysis = JSON.parse(data.choices[0].message.content);
+        console.log("Parsed analysis:", analysis);
+
+        // valiate probabilities if the sum of probabilities is not 1.0
+        if (analysis.hoax + analysis.non_hoax !== 1.0) {
+          console.error("Invalid probabilities - don't sum to 1.0");
+          const total = analysis.hoax + analysis.non_hoax;
+          analysis.hoax = analysis.hoax / total;
+          analysis.non_hoax = analysis.non_hoax / total;
+        }
 
         return analysis;
       } catch (error) {
@@ -289,30 +331,36 @@
           .join(" ");
       }
 
-      this.addHoaxTweetToBookmark(text, "ini mengandung hoax");
-      this.blurringContent("ini mengandung hoax");
-
       // logic to check the tweet content
-      // try {
-      //   const keywords = await this.generateKeywords(text);
-      //   const hoaxResponse = await this.fetchTurnbackhoaxAPI(keywords);
-      //   const analysisResult = await this.analyzeHoaxResponse(
-      //     hoaxResponse,
-      //     text
-      //   );
-      //   console.log(`Result of analyze: ${analysisResult}`);
+      try {
+        const keywords = await this.generateKeywords(text);
+        console.log(`Keywords: ${keywords}`);
+        const hoaxResponse = await this.fetchTurnbackhoaxAPI(keywords);
+        console.log(`Response from hoax API: ${hoaxResponse.length}`);
+        const analysisResult = await this.analyzeHoaxResponse(
+          hoaxResponse,
+          text
+        );
 
-      // if(){
-      // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
-      //   this.addHoaxTweetToBookmark(text,analysisResult);
-      //   this.blurringContent(analysisResult)
-      // }else{
-      // 4.2 if not, show popup message that the tweet is not hoax
-      // }
-      // } catch (err) {
-      //   console.error("Error during tweet analysis:", err);
-      //   alert("An error occurred while analyzing the tweet.");
-      // }
+        // check if the analysis result is hoax or not
+        if (analysisResult.hoax > 0.7) {
+          // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
+          console.log(
+            `Tweet is hoax with probability: ${analysisResult.hoax} and explanation: ${analysisResult.explanation}`
+          );
+          this.addHoaxTweetToBookmark(text, analysisResult.explanation);
+          this.blurringContent(analysisResult);
+        } else {
+          // 4.2 if not, show popup message that the tweet is not hoax
+          console.log(
+            `Tweet is not hoax with probability: ${analysisResult.hoax} and explanation: ${analysisResult.explanation}`
+          );
+          alert(analysisResult.explanation);
+        }
+      } catch (err) {
+        console.error("Error during tweet analysis:", err);
+        alert("Terjadi kesalahan saat memeriksa tweet.");
+      }
     }
 
     // Add "Periksa" button when the tweet is loaded
@@ -350,6 +398,7 @@
         console.error(`Error checking tweet link: ${err.message}`);
       }
 
+      // if the button doesn't exist, create it
       if (!checkBtnExists) {
         console.log("Check button created");
 
