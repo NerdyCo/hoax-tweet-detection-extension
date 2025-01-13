@@ -25,8 +25,86 @@
           setTimeout(() => {
             this.tweetLoaded();
           }, 300);
+
+          // setTimeout(() => {
+          //   const checkBtn = document.querySelector(".check-btn");
+
+          //   if (checkBtn) {
+          //     checkBtn.click();
+          //   }
+          // }, 500);
         }
       });
+    }
+
+    showFlashMessage(message, duration, type = "success") {
+      const flashDiv = document.createElement("div");
+      const contentContainer = document.createElement("div");
+      const messageText = document.createElement("div");
+      const durationText = document.createElement("div");
+
+      const styles = {
+        position: "fixed",
+        top: "15%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        padding: "12px 24px",
+        borderRadius: "8px",
+        color: "white",
+        zIndex: "10000",
+        animation: "slideIn 0.5s ease-out",
+        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontSize: "14px",
+        fontWeight: "500",
+      };
+
+      const containerStyles = {
+        display: "flex",
+        flexDirection: "column",
+        gap: "4px",
+      };
+
+      const durationStyles = {
+        fontSize: "12px",
+        fontStyle: "italic",
+        opacity: "0.9",
+      };
+
+      const colors = {
+        success: "#4CAF50",
+        error: "#F44336",
+      };
+
+      Object.assign(flashDiv.style, styles);
+      Object.assign(contentContainer.style, containerStyles);
+      Object.assign(durationText.style, durationStyles);
+
+      flashDiv.style.backgroundColor = colors[type];
+      messageText.textContent = message;
+      durationText.textContent = `Diperiksa dalam: ${duration.toFixed(
+        2
+      )} detik`;
+      contentContainer.appendChild(messageText);
+      contentContainer.appendChild(durationText);
+      flashDiv.appendChild(contentContainer);
+
+      // Add animation keyframes
+      const styleSheet = document.createElement("style");
+      styleSheet.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(styleSheet);
+      document.body.appendChild(flashDiv);
+
+      setTimeout(() => {
+        flashDiv.style.animation = "slideIn 0.5s ease-out reverse";
+        setTimeout(() => flashDiv.remove(), 500);
+      }, 5000);
     }
 
     // Blur tweet content
@@ -37,7 +115,7 @@
 
       const tryBlurring = () => {
         const content = document.getElementsByClassName(
-          "css-175oi2r r-1igl3o0 r-qklmqi r-1adg3ll r-1ny4l3l"
+          "css-175oi2r r-1adg3ll r-1ny4l3l"
         )[0];
 
         if (content) {
@@ -72,7 +150,7 @@
               text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
             }
 
-            .black-container {
+            .content-container {
               background-color: rgba(0, 0, 0, 0.7);
               width: 90%;
               padding: 20px;
@@ -80,6 +158,18 @@
               display: flex;
               flex-direction: column;
               align-items: center;
+            }
+
+            .show-tweet-button {
+              background-color: white;
+              color: black;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 20px;
+              cursor: pointer;
+              font-size: 14px;
+              font-family: sans-serif;
+              font-weight: bold;
             }
           `;
 
@@ -91,16 +181,25 @@
 
           if (!censorOverlay) {
             const explanationText = document.createElement("p");
-            const blackContainer = document.createElement("div");
+            const contentContainer = document.createElement("div");
+            const showTweetButton = document.createElement("button");
             censorOverlay = document.createElement("div");
 
             censorOverlay.className = "censored";
-            blackContainer.className = "black-container";
+            contentContainer.className = "content-container";
             explanationText.className = "tweet-explanation";
-            explanationText.textContent = TweetExplanation;
-
-            blackContainer.appendChild(explanationText);
-            censorOverlay.appendChild(blackContainer);
+            showTweetButton.textContent = "Lihat Tweet";
+            showTweetButton.className = "show-tweet-button";
+            showTweetButton.addEventListener("click", () => {
+              censorOverlay.style.display = "none";
+            });
+            explanationText.textContent =
+              typeof TweetExplanation === "object"
+                ? TweetExplanation.explanation
+                : TweetExplanation;
+            contentContainer.appendChild(explanationText);
+            contentContainer.appendChild(showTweetButton);
+            censorOverlay.appendChild(contentContainer);
             content.style.position = "relative";
             content.appendChild(censorOverlay);
           }
@@ -165,7 +264,7 @@
 
     // Fetch data from Turnbackhoax API
     async fetchTurnbackhoaxAPI(keywords) {
-      const proxyUrl = "http://localhost:3000/";
+      const proxyUrl = "https://hoax-detection-proxy.glitch.me";
       const API_KEY = this.TURNBACKHOAX_API_KEY;
       const SEARCH_FIELD_OPTION = "tags";
       let allData = [];
@@ -219,7 +318,7 @@
         const promtSystem =
           "You are a fact-checking assistant. Analyze content and assign probabilities based on evidence found in turnbackhoax database and writing style. If matches found in database or suspicious style detected, increase hoax probability.";
         const promtUser = `Analyze this tweet: "${tweetText}" 
-      Compare with turnbackhoax data: ${turnbackhoaxResponse}
+      Compare with turnbackhoax data: ${turnbackhoaxResponse} and give an explanation why it is hoax or not.
       Rules:
       - If matching content found in turnbackhoax: hoax > 0.7
       - If no matches but suspicious style: hoax 0.4-0.7 
@@ -261,7 +360,7 @@
         const analysis = JSON.parse(data.choices[0].message.content);
         console.log("Parsed analysis:", analysis);
 
-        // valiate probabilities if the sum of probabilities is not 1.0
+        // validate probabilities if the sum of probabilities is not 1.0
         if (analysis.hoax + analysis.non_hoax !== 1.0) {
           console.error("Invalid probabilities - don't sum to 1.0");
           const total = analysis.hoax + analysis.non_hoax;
@@ -313,11 +412,11 @@
 
     // Check the content of the tweet
     async checkingTweet() {
+      const startTime = performance.now();
       const contentTweet = document.querySelector(
         'div[data-testid="tweetText"]'
       );
       let text = "";
-
       if (!contentTweet) {
         console.error("No content found.");
         return;
@@ -330,7 +429,6 @@
           .map((e) => e.textContent)
           .join(" ");
       }
-
       // logic to check the tweet content
       try {
         const keywords = await this.generateKeywords(text);
@@ -342,6 +440,9 @@
           text
         );
 
+        const endTime = performance.now();
+        const executionTime = (endTime - startTime) / 1000;
+
         // check if the analysis result is hoax or not
         if (analysisResult.hoax > 0.7) {
           // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
@@ -350,23 +451,37 @@
           );
           this.addHoaxTweetToBookmark(text, analysisResult.explanation);
           this.blurringContent(analysisResult);
+          this.showFlashMessage(
+            analysisResult.explanation,
+            executionTime,
+            "error"
+          );
         } else {
           // 4.2 if not, show popup message that the tweet is not hoax
+          this.showFlashMessage(
+            analysisResult.explanation,
+            executionTime,
+            "success"
+          );
           console.log(
             `Tweet is not hoax with probability: ${analysisResult.hoax} and explanation: ${analysisResult.explanation}`
           );
-          alert(analysisResult.explanation);
         }
       } catch (err) {
+        const endTime = performance.now();
+        const executionTime = (endTime - startTime) / 1000;
         console.error("Error during tweet analysis:", err);
-        alert("Terjadi kesalahan saat memeriksa tweet.");
+        this.showFlashMessage(
+          "Terjadi kesalahan saat memeriksa tweet",
+          executionTime,
+          "error"
+        );
       }
     }
 
     // Add "Periksa" button when the tweet is loaded
     async tweetLoaded() {
       const checkBtnExists = document.getElementsByClassName("check-btn")[0];
-
       // check if tweet is contain hoax or not
       try {
         const result = await new Promise((resolve, reject) => {
@@ -416,6 +531,15 @@
           font-weight: bold;
         }
       `;
+        const loadingSvg = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" width="20" height="20" style="shape-rendering: auto; display: block;">
+    <g>
+      <path stroke="none" fill="#171717" d="M23 50A27 27 0 0 0 77 50A27 30.1 0 0 1 23 50">
+        <animateTransform values="0 50 51.55;360 50 51.55" keyTimes="0;1" repeatCount="indefinite" dur="1s" type="rotate" attributeName="transform"></animateTransform>
+      </path>
+    </g>
+  </svg>
+`;
 
         let styleSheet = document.createElement("style");
         let twitterOptions = document.getElementsByClassName(
@@ -431,7 +555,13 @@
 
         if (twitterOptions) {
           twitterOptions.insertBefore(checkBtn, twitterOptions.firstChild);
-          checkBtn.addEventListener("click", this.checkingTweet.bind(this));
+          checkBtn.addEventListener("click", async () => {
+            checkBtn.disabled = true;
+            checkBtn.innerHTML = loadingSvg;
+            await this.checkingTweet();
+            checkBtn.textContent = "Periksa";
+            checkBtn.disabled = false;
+          });
         } else {
           console.error("Element not found");
         }
