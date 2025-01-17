@@ -114,9 +114,9 @@
       let retryCount = 0;
 
       const tryBlurring = () => {
-        const content = document.getElementsByClassName(
-          "css-175oi2r r-1adg3ll r-1ny4l3l"
-        )[0];
+        const content = Array.from(
+          document.getElementsByClassName("css-175oi2r r-12kyg2d")
+        ).find((el) => el.classList.length === 2).parentElement.parentElement;
 
         if (content) {
           const styles = `
@@ -413,31 +413,42 @@
     // Check the content of the tweet
     async checkingTweet() {
       const startTime = performance.now();
-      const contentTweet = document.querySelector(
-        'div[data-testid="tweetText"]'
-      );
-      let text = "";
+      const tweetContent = [
+        ...Array.from(
+          document.getElementsByClassName("css-175oi2r r-12kyg2d")
+        ).find((el) => el.classList.length === 2).parentElement.children,
+      ].filter(
+        (child) =>
+          child !==
+            Array.from(
+              document.getElementsByClassName("css-175oi2r r-12kyg2d")
+            ).find((el) => el.classList.length === 2) &&
+          child.classList.contains("css-175oi2r")
+      )[0].firstChild.firstChild.textContent;
+      // let text = "";
+
       if (!contentTweet) {
         console.error("No content found.");
         return;
       }
 
-      if (contentTweet.children.length === 1) {
-        text = contentTweet.children[0].innerHTML;
-      } else if (contentTweet.children.length > 1) {
-        text = Array.from(contentTweet.children)
-          .map((e) => e.textContent)
-          .join(" ");
-      }
+      // if (contentTweet.children.length === 1) {
+      //   text = contentTweet.children[0].textContent;
+      // } else if (contentTweet.children.length > 1) {
+      //   text = Array.from(contentTweet.children)
+      //     .map((e) => e.textContent)
+      //     .join(" ");
+      // }
+
       // logic to check the tweet content
       try {
-        const keywords = await this.generateKeywords(text);
+        const keywords = await this.generateKeywords(tweetContent);
         console.log(`Keywords: ${keywords}`);
         const hoaxResponse = await this.fetchTurnbackhoaxAPI(keywords);
         console.log(`Response from hoax API: ${hoaxResponse.length}`);
         const analysisResult = await this.analyzeHoaxResponse(
           hoaxResponse,
-          text
+          tweetContent
         );
 
         const endTime = performance.now();
@@ -449,7 +460,7 @@
           console.log(
             `Tweet is hoax with probability: ${analysisResult.hoax} and explanation: ${analysisResult.explanation}`
           );
-          this.addHoaxTweetToBookmark(text, analysisResult.explanation);
+          this.addHoaxTweetToBookmark(tweetContent, analysisResult.explanation);
           this.blurringContent(analysisResult);
           this.showFlashMessage(
             analysisResult.explanation,
@@ -542,9 +553,11 @@
 `;
 
         let styleSheet = document.createElement("style");
-        let twitterOptions = document.getElementsByClassName(
-          "css-175oi2r r-1awozwy r-18u37iz r-1cmwbt1 r-1wtj0ep"
-        )[0];
+        let twitterOptions = Array.from(
+          document.getElementsByClassName("css-175oi2r r-12kyg2d")
+        ).find((el) => el.classList.length === 2).parentElement.parentElement
+          .children[1].children[1].children[0].children[0].children[1]
+          .children[0];
 
         checkBtn.textContent = "Periksa";
         checkBtn.className = "tweet-btn check-btn";
