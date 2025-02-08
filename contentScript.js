@@ -26,13 +26,13 @@
             this.tweetLoaded();
           }, 300);
 
-          // setTimeout(() => {
-          //   const checkBtn = document.querySelector(".check-btn");
+          setTimeout(() => {
+            const checkBtn = document.querySelector(".check-btn");
 
-          //   if (checkBtn) {
-          //     checkBtn.click();
-          //   }
-          // }, 500);
+            if (checkBtn) {
+              checkBtn.click();
+            }
+          }, 500);
         }
       });
     }
@@ -228,7 +228,7 @@
     // generate keywords using gpt api with gpt 3.5 model that receives text as input
     async generateKeywords(text) {
       const apiKey = this.OPENAI_API_KEY;
-      const prompt = `buat maksimal dua keyword dari kalimat berikut: "${text}" dengan menggunakan bahasa indonesia, langsung saja tidak usah dijelaskan.`;
+      const prompt = `buat maksimum dua keywords dari kalimat atau paragraf berikut: "${text}" dalam bahasa indonesia, buat keywords saja tanpa penjelasan apapun, hanya keywords saja`;
 
       try {
         const response = await fetch(
@@ -271,7 +271,9 @@
 
       try {
         for (const keyword of keywords) {
-          const keywordApiUrl = `https://yudistira.turnbackhoax.id/Antihoax/${SEARCH_FIELD_OPTION}/${keyword}/${API_KEY}`;
+          const keywordApiUrl = `https://yudistira.turnbackhoax.id/Antihoax/${SEARCH_FIELD_OPTION}/${encodeURIComponent(
+            keyword
+          )}/${API_KEY}`;
           const response = await fetch(
             `${proxyUrl}?url=${encodeURIComponent(keywordApiUrl)}`,
             {
@@ -307,24 +309,40 @@
         );
         return jsonResult;
       } catch (error) {
-        console.error(`Error fetching data: ${error}`);
-        throw error;
+        console.error(`Error fetching data from Turnbackhoax API: ${error}`);
+        throw new Error(
+          `Failed to fetch data from Turnbackhoax API: ${error.message}`
+        );
       }
     }
 
     // analyze respons from fetchturnbackhoax and tweet text, using gpt model
     async analyzeHoaxResponse(turnbackhoaxResponse, tweetText) {
       try {
+        console.log("Turnbackhoax response:", turnbackhoaxResponse);
+
         const promtSystem =
-          "You are a fact-checking assistant. Analyze content and assign probabilities based on evidence found in turnbackhoax database and writing style. If matches found in database or suspicious style detected, increase hoax probability.";
-        const promtUser = `Analyze this tweet: "${tweetText}" 
-      Compare with turnbackhoax data: ${turnbackhoaxResponse} and give an explanation why it is hoax or not.
-      Rules:
-      - If matching content found in turnbackhoax: hoax > 0.7
-      - If no matches but suspicious style: hoax 0.4-0.7 
-      - If no matches and normal style: hoax < 0.4
-      Return JSON with:
-      {"hoax": (probability 0-1),"non_hoax": (inverse of hoax),"explanation": "(reasoning in Indonesian)"}`;
+          "Anda adalah asisten pengecekan fakta. Analisis konten dan berikan probabilitas berdasarkan bukti yang ditemukan dalam database turnbackhoax dan gaya penulisan. Jika ditemukan kecocokan dalam database atau terdeteksi gaya penulisan yang mencurigakan, tingkatkan probabilitas hoax.";
+        const promtUser = `analisis tweet ini: "${tweetText}"
+bandingkan informasi dari tweet dengan respon dari turnbackhoax berikut: "${turnbackhoaxResponse}"
+
+Tugas:
+1. Periksa apakah konten tweet cocok dengan respon dari turnbackhoax
+2. Analisis gaya penulisan untuk tanda-tanda misinformasi (HURUF KAPITAL, tanda baca berlebihan, bahasa yang sensasional)
+3. Evaluasi kredibilitas berdasarkan kecocokan konten dan gaya penulisan
+4. Berikan penjelasan detail dalam bahasa Indonesia
+
+Aturan Penilaian:
+- Jika ditemukan kecocokan informasi antara tweet dengan respon turnbackhoax: probabilitas hoax > 0.8
+- Jika tidak ada kecocokan informasi antara tweet dengan respon turnbackhoax tapi gaya penulisan menunjukkan beberapa tanda mencurigakan: probabilitas hoax 0.4-0.7
+- Jika tidak ada kecocokan informasi dan gaya penulisan terlihat kredibel: probabilitas hoax < 0.4
+
+Format JSON Response yang Dibutuhkan:
+{
+  "hoax": (probabilitas antara 0-1),
+  "non_hoax": (harus 1 - probabilitas hoax),
+  "explanation": "(penjelasan dalam Bahasa Indonesia mengapa tweet tersebut hoax atau tidak berdasarkan analisis (berikan klarifikasi penjelasan dari respon turnbackhoax jika ada, jika tidak ada tidak perlu memberikan informasi tambahan))"
+}`;
 
         const response = await fetch(
           "https://api.openai.com/v1/chat/completions",
@@ -427,7 +445,7 @@
       )[0].firstChild.firstChild.textContent;
       // let text = "";
 
-      if (!contentTweet) {
+      if (!tweetContent) {
         console.error("No content found.");
         return;
       }
@@ -458,7 +476,11 @@
         if (analysisResult.hoax > 0.7) {
           // 4.1 if the tweet is hoax, add the tweet to the bookmark, blurr the tweet and show the analysis result
           console.log(
-            `Tweet is hoax with probability: ${analysisResult.hoax} and explanation: ${analysisResult.explanation}`
+            `Tweet is hoax with probability: ${
+              analysisResult.hoax
+            } and explanation: ${
+              analysisResult.explanation
+            } in ${executionTime.toFixed(2)} seconds`
           );
           this.addHoaxTweetToBookmark(tweetContent, analysisResult.explanation);
           this.blurringContent(analysisResult);
@@ -475,7 +497,11 @@
             "success"
           );
           console.log(
-            `Tweet is not hoax with probability: ${analysisResult.hoax} and explanation: ${analysisResult.explanation}`
+            `Tweet is not hoax with probability: ${
+              analysisResult.hoax
+            } and explanation: ${
+              analysisResult.explanation
+            } in ${executionTime.toFixed(2)} seconds`
           );
         }
       } catch (err) {
@@ -495,6 +521,7 @@
       const checkBtnExists = document.getElementsByClassName("check-btn")[0];
       // check if tweet is contain hoax or not
       try {
+        this.clearAllData();
         const result = await new Promise((resolve, reject) => {
           chrome.storage.sync.get("tweetLink", (result) => {
             chrome.runtime.lastError
